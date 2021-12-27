@@ -1,7 +1,9 @@
 const { program, Option } = require('commander');
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
+const { promisify } = require('util');
+const exec = promisify(require('child_process').exec);
 const octokit = require('@octokit/request');
+const fs = require("fs/promises");
+const path = require("path");
 
 program.version('0.0.1')
 program
@@ -69,7 +71,10 @@ const requestWithAuth = octokit.request.defaults({
         await exec(`wget "${download_url}" -O build.zip`, {cwd: deploy_dir});
 
         console.log('Cleaning deployment directory');
-        await exec(`rm -rf ui api || true`, {cwd: deploy_dir});
+        const files = (await fs.readdir(deploy_dir))
+                .filter(file => file !== 'build.zip')
+                .map(file => path.join(deploy_dir, file));
+        await Promise.all(files.map(file => fs.rm(file, {recursive: true})));
 
         console.log('Extracting build');
         await exec(`unzip build.zip`, {cwd: deploy_dir});
